@@ -1,17 +1,31 @@
+/*globals getAPIKey*/
 function showResult() {
 
-  function showText(sText) {
-    document.getElementById('paragraph1').innerHTML = sText;
+  class City {
+    constructor(sCity, sCityCode) {
+      this.sCity = sCity;
+      this.sCityCode = sCityCode;
+      this.sTemperature = '';
+    }
   }
 
-  function getTemperature() {
+  const cities = [
+    new City('Vancouver', 'Vancouver,ca'),
+    new City('Coquitlam', 'Coquitlam,ca'),
+    new City('North Vancouver', 'North+Vancouver,ca')
+  ];
+
+  function showText(sText) {
+    $('p').last().after(`<p>${sText}</p>`);
+  }
+
+  function getTemperature(oCity) {
     return new Promise((resolve, reject) => {
       const oReq = new XMLHttpRequest();
-      const sAppID = 'da1240fb8032e8e258bc11509bc2ce04';
-      // const sAppID = '';
       oReq.addEventListener('load', function() {
         if (this.status === 200) {
-          resolve(this);
+          oCity.sTemperature = JSON.parse(this.responseText).main.temp;
+          resolve(oCity);
         }
         else {
           reject(this);
@@ -26,14 +40,23 @@ function showResult() {
           this.statusText = 'Time Out';
         });
       });
-      oReq.open('GET', 'https://api.openweathermap.org/data/2.5/weather?q=Vancouver&units=metric&appid=' + sAppID);
+      oReq.open('GET', `https://api.openweathermap.org/data/2.5/weather?q=${oCity.sCityCode}&units=metric&appid=${getAPIKey()}`);
       oReq.send();
 
     });
 
   }
-  getTemperature()
-    .then(result => showText(JSON.parse(result.responseText).main.temp))
-    .catch(error => showText('Error happened: ' + error.status + ' ' + error.statusText));
-  showText('Wait for this...');
+
+  Promise.all(cities.map(city => getTemperature(city)))
+    .then(results => {
+      showText('Here is the weather:');
+      $('p').first().next().remove();
+      return results;
+    })
+    .then(results => results.forEach(result => showText(result.sCity + ': ' + result.sTemperature)))
+    .catch(error => showText('Error happened: ' + error.status + ' ' + error.statusText))
+    .finally(() => showText('That is it!'));
+
+  showText('Wait for it...');
+
 }
